@@ -16,10 +16,11 @@ app.use(express.json());
 app.post('/api/scrape', async (req, res) => {
     let browser = null;
     try {
-        const { url } = req.body;
+        // Agora esperamos 'bb_ads' no body em vez de 'url'
+        const url = req.body.bb_ads;
 
         if (!url) {
-            return res.status(400).json({ error: 'URL is required' });
+            return res.status(400).json({ error: 'Parameter "bb_ads" is required' });
         }
 
         console.log(`Scraping URL: ${url}`);
