@@ -41,17 +41,28 @@ app.post('/api/scrape', async (req, res) => {
 
         const page = await browser.newPage();
 
+        // Otimização: Bloquear recursos desnecessários (imagens, fontes, css)
+        await page.setRequestInterception(true);
+        page.on('request', (req) => {
+            if (['image', 'stylesheet', 'font', 'media'].includes(req.resourceType())) {
+                req.abort();
+            } else {
+                req.continue();
+            }
+        });
+
         // Configurações para parecer mais humano
         await page.setViewport({ width: 1280, height: 800 });
 
-        // Tentar navegar
-        await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+        // Tentar navegar (domcontentloaded é mais rápido que networkidle2)
+        // Timeout reduzido
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+        // Pequena espera manual para garantir scripts mas não excessiva
+        await new Promise(r => setTimeout(r, 2000));
 
         // Obter o conteúdo HTML da página renderizada
         const html = await page.content();
-
-        // Opcional: Salvar para debug se necessário
-        // require('fs').writeFileSync('debug_puppeteer.html', html);
 
         // Lógica de extração fornecida pelo usuário
         let total_results = 0;
@@ -72,8 +83,6 @@ app.post('/api/scrape', async (req, res) => {
             }
         }
 
-        // Se ainda for 0, tentar procurar nas meta tags ou estrutura do React (opcional, mas mantendo a lógica do user)
-
         const result = {
             "bb-ads": {
                 total_search_results: total_results
@@ -85,9 +94,13 @@ app.post('/api/scrape', async (req, res) => {
 
     } catch (error) {
         console.error('Error scraping:', error);
-        if (browser) await browser.close();
+        if (browser) {
+            try {
+                await browser.close();
+            } catch (e) { console.error("Error closing browser", e); }
+        }
 
-        return res.json({
+        return res.status(500).json({
             "bb-ads": {
                 total_search_results: 0,
                 error: error.message
