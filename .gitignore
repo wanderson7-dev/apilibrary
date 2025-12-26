@@ -5,3 +5,4 @@ test.js
 last_scrape.html
 npm-debug.log
 .env
+.npm-cache
